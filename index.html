@@ -1,0 +1,1139 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Эх дэлхийгээ судалцгаая</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<style>
+:root{
+  --space1:#050b24; --space2:#0c1d4f; --space3:#1b2f7a;
+  --card:#ffffff; --ink:#132a46; --muted:#53697e; --line:#dde7f2;
+  --blue:#1f8bff; --blue-d:#0b5fc0; --blue-soft:#e3f1ff;
+  --green:#22b45f; --green-d:#16813f; --green-soft:#ddf7e7;
+  --sun:#ffbf2f; --sun-d:#d68f00; --sun-soft:#fff3d4;
+  --coral:#ff6b5a; --coral-soft:#ffe6e2;
+  --teal:#14b1a6; --teal-soft:#d9f6f3;
+  --earth:#b86b2f; --red:#e5484d;
+  --on-dark:#ffffff; --on-dark-2:#bcd3ff;
+  --shadow:0 10px 30px rgba(0,10,40,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  color:var(--ink);font-family:"Nunito","Segoe UI",system-ui,sans-serif;font-size:21px;line-height:1.45;overflow:hidden;
+  background:radial-gradient(ellipse at 15% 10%,#22337e 0%,transparent 45%),radial-gradient(ellipse at 70% 30%,#2a1d6b 0%,transparent 40%),linear-gradient(160deg,var(--space2),var(--space1) 70%);
+}
+button{font:inherit;cursor:pointer}
+
+/* ===== Space background ===== */
+.stars,.stars2{position:fixed;inset:0;pointer-events:none;z-index:0}
+.stars{background-image:
+  radial-gradient(1.6px 1.6px at 25px 35px,#fff,transparent),radial-gradient(1px 1px at 120px 80px,#cfe0ff,transparent),
+  radial-gradient(1.4px 1.4px at 200px 160px,#fff,transparent),radial-gradient(1px 1px at 300px 40px,#fff,transparent),
+  radial-gradient(1.2px 1.2px at 340px 220px,#ffe9b0,transparent),radial-gradient(1px 1px at 60px 250px,#fff,transparent);
+  background-size:380px 280px;opacity:.75}
+.stars2{background-image:radial-gradient(2px 2px at 90px 120px,#fff,transparent),radial-gradient(1.6px 1.6px at 260px 300px,#bfe3ff,transparent),radial-gradient(1.8px 1.8px at 420px 60px,#fff,transparent);
+  background-size:520px 400px;animation:twinkle 4s ease-in-out infinite alternate}
+@keyframes twinkle{from{opacity:.25}to{opacity:1}}
+#bgGlobe{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+
+/* ===== Top bar ===== */
+.top{position:fixed;inset:0 0 auto 0;height:62px;display:flex;align-items:center;gap:14px;padding:0 18px;z-index:20;
+  background:rgba(8,16,48,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#fff;border-bottom:1px solid rgba(255,255,255,.12)}
+.top::after{content:"";position:absolute;left:0;right:0;bottom:-3px;height:3px;background:linear-gradient(90deg,#1f8bff,#14b1a6,#22b45f,#ffbf2f)}
+.brand{font-weight:900;font-size:19px;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.mini-earth{width:34px;height:34px;border-radius:50%;background:url("https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/500px-The_Earth_seen_from_Apollo_17.jpg") center/112% #1f8bff;box-shadow:0 0 12px rgba(80,170,255,.8);animation:spin 20s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stage{flex:1;min-width:0}
+.stage-name{font-weight:800;color:#9fd0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.timer{display:flex;align-items:center;gap:8px;font-weight:900;font-variant-numeric:tabular-nums;font-size:24px;padding:4px 14px;border-radius:12px;background:rgba(34,180,95,.2);color:#7ff0ad;border:1px solid rgba(127,240,173,.4)}
+.timer.warn{background:rgba(255,191,47,.2);color:#ffd36b;border-color:rgba(255,211,107,.5)}
+.timer.over{background:rgba(229,72,77,.25);color:#ff9a9d;border-color:rgba(255,154,157,.5)}
+.tbtn{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);border-radius:12px;padding:6px 12px;font-weight:800;font-size:16px;color:#fff}
+.tbtn:hover{background:rgba(255,255,255,.18)}
+.music{display:flex;align-items:center;gap:6px;padding:3px 6px 3px 3px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08)}
+.music .tbtn{border:none;background:transparent;padding:4px 8px}
+.music.on .tbtn{color:#7ff0ad}
+.music.on .eq i{animation:eq .9s ease-in-out infinite}
+.eq{display:inline-flex;align-items:flex-end;gap:2px;height:14px;margin-left:4px;vertical-align:-1px}
+.eq i{width:3px;height:4px;background:currentColor;border-radius:2px}
+.eq i:nth-child(2){animation-delay:.2s!important}.eq i:nth-child(3){animation-delay:.4s!important}
+@keyframes eq{0%,100%{height:4px}50%{height:14px}}
+.music input{width:90px;accent-color:#7ff0ad;cursor:pointer}
+@media (max-width:1100px){.music input{display:none}}
+.progress{position:fixed;top:62px;left:0;height:3px;background:#fff;box-shadow:0 0 10px #fff;transition:width .4s;z-index:21}
+
+/* ===== Slides ===== */
+.deck{position:absolute;inset:66px 0 72px 0;z-index:1}
+.slide{position:absolute;inset:0;overflow:auto;padding:20px clamp(16px,4vw,56px) 30px;opacity:0;visibility:hidden;transform:translateY(24px) scale(.98);transition:opacity .45s,transform .45s,visibility .45s}
+.slide.active{opacity:1;visibility:visible;transform:none}
+.inner{max-width:1280px;margin:0 auto}
+h1{font-size:clamp(40px,5.8vw,76px);line-height:1.05;margin:0 0 14px;font-weight:900;color:#fff;text-shadow:0 4px 30px rgba(31,139,255,.55)}
+h1 .hl{background:linear-gradient(90deg,#6fd3ff,#7ff0ad 55%,#ffd36b);-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{font-size:clamp(28px,3.2vw,42px);margin:0 0 6px;font-weight:900;display:flex;align-items:center;gap:12px;color:#fff;text-shadow:0 2px 16px rgba(0,0,0,.4)}
+h3{font-size:24px;margin:0 0 8px;font-weight:800}
+.sub{color:var(--on-dark-2);margin:0 0 16px;font-size:20px}
+.sub b{color:#fff}
+.card{background:var(--card);border-radius:24px;box-shadow:var(--shadow);padding:20px 22px;position:relative}
+.glass{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:24px;padding:18px 20px;color:#fff;backdrop-filter:blur(6px)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.btn{border:none;border-radius:14px;padding:10px 18px;font-weight:800;background:var(--blue);color:#fff;box-shadow:0 4px 0 var(--blue-d);transition:transform .1s,filter .15s}
+.btn:hover{filter:brightness(1.08)}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 var(--blue-d)}
+.btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line);box-shadow:none}
+.btn.ghost.on{background:var(--blue-soft);border-color:var(--blue);color:var(--blue-d)}
+.btn.green{background:var(--green);box-shadow:0 4px 0 var(--green-d)}
+.btn.sun{background:var(--sun);color:#3b2a00;box-shadow:0 4px 0 var(--sun-d)}
+.muted{color:var(--muted)}
+.note{background:var(--sun-soft);border-left:6px solid var(--sun);border-radius:12px;padding:12px 16px;margin-top:14px}
+.def{background:var(--blue-soft);border-radius:14px;padding:10px 14px;margin:8px 0}
+.def b{color:var(--blue-d)}
+
+/* ===== Bottom nav ===== */
+.nav{position:fixed;inset:auto 0 0 0;height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;z-index:20;gap:10px;
+  background:rgba(8,16,48,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,.12)}
+.nav .btn.ghost{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.25)}
+.dots{display:flex;gap:9px;flex-wrap:wrap;justify-content:center}
+.dot{width:36px;height:36px;border-radius:50%;border:2px solid rgba(255,255,255,.3);background:rgba(255,255,255,.06);font-weight:800;font-size:15px;color:#cfe0ff;transition:.2s}
+.dot.on{background:radial-gradient(circle at 35% 30%,#8fd6ff,#1f8bff 45%,#0b4a9a);border-color:#fff;color:#fff;box-shadow:0 0 14px rgba(80,170,255,.9);transform:scale(1.12)}
+.dot.done{background:radial-gradient(circle at 35% 30%,#a6f5c4,#22b45f 60%);border-color:#7ff0ad;color:#053d1c}
+
+/* ===== Teacher notes ===== */
+.tnotes{position:fixed;right:18px;bottom:84px;width:min(420px,calc(100vw - 36px));background:#fffaf0;border:2px solid var(--sun);border-radius:18px;padding:14px 18px;font-size:17px;box-shadow:var(--shadow);z-index:25;display:none}
+.tnotes.show{display:block}
+.tnotes h4{margin:0 0 6px;font-size:18px}
+.tnotes ul{margin:0;padding-left:20px}
+
+/* ===== Title slide ===== */
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:30px;align-items:center;min-height:calc(100vh - 180px)}
+.hero-img{position:relative;aspect-ratio:1;max-width:440px;margin:auto;width:100%}
+.hero-img img{width:100%;height:100%;object-fit:cover;border-radius:50%;box-shadow:0 0 0 3px rgba(150,210,255,.6),0 0 60px 10px rgba(60,150,255,.55),0 0 160px 40px rgba(60,150,255,.25);animation:float 6s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-12px)}}
+.orbit{position:absolute;inset:-34px;border:2px dashed rgba(190,220,255,.45);border-radius:50%;animation:spin 24s linear infinite}
+.orbit span{position:absolute;top:-24px;left:50%;font-size:42px;filter:drop-shadow(0 0 10px #fff8)}
+.intro{min-height:calc(100vh - 190px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:18px}
+.intro .school{font-size:clamp(26px,3vw,38px);font-weight:900;color:#9fd0ff;letter-spacing:1px}
+.intro .subject{font-size:clamp(54px,8vw,104px);font-weight:900;line-height:1.05;margin:0;background:linear-gradient(90deg,#6fd3ff,#7ff0ad 55%,#ffd36b);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 6px 30px rgba(31,139,255,.45))}
+.intro .teacher{display:inline-flex;align-items:center;gap:12px;font-size:clamp(24px,2.8vw,34px);font-weight:800;color:#fff;padding:12px 28px;border-radius:99px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(6px)}
+.intro .planet{width:clamp(120px,16vh,170px);aspect-ratio:1;border-radius:50%;background:url("https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/500px-The_Earth_seen_from_Apollo_17.jpg") center/112% #1f8bff;box-shadow:0 0 50px 8px rgba(60,150,255,.55);animation:float 6s ease-in-out infinite}
+.goals{padding-left:0;list-style:none;margin:0}
+.goals li{margin:7px 0}
+.goals li::before{content:"🌱 "}
+
+/* ===== Self-made video ===== */
+.vid{background:#000;border-radius:20px;overflow:hidden;box-shadow:var(--shadow),0 0 0 2px rgba(255,255,255,.15)}
+.vid canvas{display:block;width:100%;aspect-ratio:16/9;background:#050b24;cursor:pointer}
+.vbar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#0c1638}
+.vbar button{border:none;background:rgba(255,255,255,.12);color:#fff;border-radius:10px;padding:6px 12px;font-weight:800;font-size:16px}
+.vbar button:hover{background:rgba(255,255,255,.22)}
+.vprog{flex:1;height:10px;border-radius:99px;background:rgba(255,255,255,.18);cursor:pointer;position:relative;overflow:hidden}
+.vprog i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,#1f8bff,#7ff0ad);border-radius:99px}
+.vtime{color:#cfe0ff;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;min-width:86px;text-align:right}
+
+/* Riddle */
+.riddle{font-size:25px;font-weight:700;line-height:1.55}
+.reveal{margin-top:12px;font-size:32px;font-weight:900;color:var(--green);opacity:0;transform:scale(.6);transition:.4s}
+.reveal.show{opacity:1;transform:none}
+
+/* ===== KWL ===== */
+table{border-collapse:separate;border-spacing:0;width:100%}
+.kwl{border-radius:20px;overflow:hidden;box-shadow:var(--shadow)}
+.kwl th{font-size:22px;padding:14px;color:#fff;text-align:left}
+.kwl th:nth-child(1){background:var(--blue)}
+.kwl th:nth-child(2){background:var(--sun);color:#3b2a00}
+.kwl th:nth-child(3){background:var(--green)}
+.kwl td{vertical-align:top;background:#fff;border-right:2px solid var(--line);padding:0;width:33.3%}
+.kwl td:last-child{border-right:none}
+.kwl td div{min-height:260px;padding:14px;outline:none;font-size:20px;white-space:pre-wrap}
+.kwl td div:empty::before{content:attr(data-ph);color:#a7b4cb}
+.kwl td div:focus{background:#fffef2}
+.kwl.two td{width:50%}
+.kwl td div.ro{background:#f5f8fc;color:#53697e;font-size:18px;min-height:0;height:100%}
+.kwl td div.ro:empty::before{content:"(хоосон)"}
+.kwl.end td:nth-child(3) div{min-height:300px;font-size:22px;background:#f3fff7}
+.kwl.end td:nth-child(3) div:focus{background:#fffef2}
+.kwl.end th:nth-child(3){font-size:26px}
+
+/* ===== Size comparison ===== */
+.space{position:relative;height:330px;background:radial-gradient(ellipse at 30% 20%,#1d2f63,#04081c 70%);border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,.18)}
+.space .sp-stars{position:absolute;inset:0;background-image:radial-gradient(1.5px 1.5px at 20px 30px,#fff,transparent),radial-gradient(1px 1px at 90px 120px,#fff,transparent),radial-gradient(1.5px 1.5px at 160px 60px,#cfe,transparent),radial-gradient(1px 1px at 230px 200px,#fff,transparent);background-size:300px 240px;opacity:.7}
+.body{position:absolute;top:50%;border-radius:50%;transform:translate(-50%,-50%);transition:all .9s cubic-bezier(.6,0,.2,1);background-size:cover;background-position:center}
+.body.sun{background-image:url("https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/500px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg");background-color:#ffb02e;box-shadow:0 0 60px #ff9d2e}
+.body.earth{background-image:url("https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/500px-The_Earth_seen_from_Apollo_17.jpg");background-size:112%;background-color:#3d8ef0;box-shadow:0 0 18px rgba(80,150,255,.6)}
+.body.moon{background-image:url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/500px-FullMoon2010.jpg");background-size:110%;background-color:#bbb}
+.lbl{position:absolute;color:#fff;font-weight:800;font-size:17px;transform:translateX(-50%);white-space:nowrap;transition:all .9s cubic-bezier(.6,0,.2,1);text-shadow:0 1px 4px #000}
+.distline{position:absolute;top:50%;height:0;border-top:3px dashed #ffd76a;transition:all .9s;opacity:0}
+.size-msg{font-weight:800;font-size:22px;margin:10px 0 14px;color:#fff}
+.size-msg b{color:#ffd36b}
+.info-tbl{font-size:19px;border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}
+.info-tbl th{background:var(--teal);color:#fff;padding:10px;text-align:left}
+.info-tbl td{padding:10px;border-bottom:1px solid var(--line);background:#fff}
+.info-tbl tr:last-child td{border-bottom:none}
+.travel select{font:inherit;padding:8px 10px;border-radius:12px;border:2px solid var(--line);background:#fff;max-width:100%}
+.travel .res{font-size:28px;font-weight:900;color:var(--blue-d);margin-top:8px}
+
+/* ===== Globe ===== */
+.globe-wrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:22px;align-items:start}
+.globe-box{position:relative;border-radius:24px;aspect-ratio:1/1;width:min(100%,calc(100vh - 215px));margin:0 auto;touch-action:none;cursor:grab}
+.globe-box:active{cursor:grabbing}
+.globe-box canvas{position:absolute;inset:0;width:100%;height:100%}
+.globe-hint{position:absolute;left:0;right:0;bottom:4px;text-align:center;color:#cfe0ff;font-size:15px;pointer-events:none}
+.tog{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.tog .btn{padding:8px 12px;font-size:17px}
+.sw{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:6px;vertical-align:-1px}
+.offline{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#fff;text-align:center;padding:20px}
+
+/* ===== Yard game ===== */
+.yard{display:grid;grid-template-columns:44px repeat(6,1fr);grid-template-rows:repeat(5,1fr) 40px;gap:5px;aspect-ratio:7/5.6;width:min(100%,calc((100vh - 240px)*1.25));background:linear-gradient(#c9eeb2,#a9de8e);padding:10px;border-radius:22px;border:6px solid #9a6332;box-shadow:var(--shadow)}
+.yard .cell{background:rgba(255,255,255,.5);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:clamp(26px,3.6vw,46px);transition:.2s;border:3px solid transparent;cursor:pointer;user-select:none}
+.yard .cell:hover{background:rgba(255,255,255,.85)}
+.yard .cell.good{background:#c9f7d9;border-color:var(--green)}
+.yard .cell.bad{background:#ffd9d9;border-color:var(--red);animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.yard .ax{display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:#5c3d1b}
+.qbox{font-size:25px;font-weight:800;padding:16px 20px;border-radius:18px;background:#fff;box-shadow:var(--shadow)}
+.score{font-size:22px;font-weight:900;color:#7ff0ad}
+.feedback{font-size:22px;font-weight:800;min-height:34px;margin-top:10px}
+.feedback.ok{color:#7ff0ad}.feedback.no{color:#ffb0a8}
+.card .feedback.ok{color:var(--green-d)}.card .feedback.no{color:var(--red)}
+.choices{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.choices .btn{min-width:84px;font-size:24px}
+
+/* ===== Hemisphere game ===== */
+.hemi-map{position:relative;border-radius:22px;overflow:hidden;box-shadow:var(--shadow);border:2px solid rgba(255,255,255,.25);background:#0d3f7a}
+.hemi-map svg{display:block;width:100%;height:auto;cursor:pointer}
+.hemi-item{display:flex;align-items:center;gap:16px}
+.hemi-item .pic{font-size:74px;line-height:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));animation:bob 2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px)}}
+.qbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.qbtns .btn{font-size:19px;padding:12px}
+.qbtns .btn.right{background:var(--green);color:#fff;border-color:var(--green)}
+.qbtns .btn.wrong{background:var(--coral-soft);border-color:var(--coral);color:var(--red)}
+
+/* ===== Quiz ===== */
+.quiz-q{font-size:32px;font-weight:900;margin:8px 0 18px;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.4)}
+.quiz-opts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.qopt{display:flex;align-items:center;gap:14px;text-align:left;padding:18px 20px;border-radius:18px;border:3px solid transparent;background:#fff;font-weight:800;font-size:23px;transition:.15s;box-shadow:var(--shadow)}
+.qopt:hover{border-color:var(--blue);transform:translateY(-2px)}
+.qopt .k{width:44px;height:44px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900}
+.qopt:nth-child(1) .k{background:var(--blue)}.qopt:nth-child(2) .k{background:var(--sun);color:#3b2a00}
+.qopt:nth-child(3) .k{background:var(--green)}.qopt:nth-child(4) .k{background:var(--coral)}
+.qopt.right{background:#d8f7e4;border-color:var(--green)}
+.qopt.wrong{background:#ffe0e0;border-color:var(--red)}
+.qopt[disabled]{cursor:default;transform:none}
+.qbar{display:flex;gap:8px;margin-bottom:10px}
+.qbar i{flex:1;height:12px;border-radius:99px;background:rgba(255,255,255,.2)}
+.qbar i.ok{background:var(--green)}.qbar i.no{background:var(--coral)}.qbar i.cur{background:#fff;box-shadow:0 0 10px #fff}
+.result{text-align:center;padding:30px}
+.result .bigstars{font-size:64px;letter-spacing:6px}
+.result h1{color:var(--blue-d);text-shadow:none}
+
+/* ===== Reflection ===== */
+.lights{display:flex;gap:14px;flex-wrap:wrap}
+.light{flex:1;min-width:150px;border:3px solid var(--line);background:#fff;border-radius:20px;padding:14px;text-align:center;font-weight:800}
+.light .e{font-size:50px}
+.light.on{border-color:var(--green);background:var(--green-soft);transform:scale(1.03)}
+.light .n{font-size:28px;color:var(--green-d)}
+
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+
+@media (max-height:900px){
+  body{font-size:18px}
+  .slide{padding-top:12px}
+  h2{font-size:30px}
+  .sub{font-size:17px;margin-bottom:10px}
+  .card{padding:14px 18px}
+  .riddle{font-size:21px;line-height:1.45}
+  .reveal{font-size:26px;margin-top:6px}
+  .note{padding:8px 12px;margin-top:10px}
+  .space{height:220px}
+  .size-msg{font-size:19px;margin:8px 0 10px}
+  .info-tbl{font-size:16px}.info-tbl td,.info-tbl th{padding:7px 8px}
+  .travel .res{font-size:24px}
+  .def{padding:7px 12px;margin:5px 0;font-size:16px}
+  .tog .btn{padding:6px 10px;font-size:15px}
+  .kwl td div{min-height:210px}
+  .quiz-q{font-size:27px;margin:4px 0 12px}
+  .qopt{padding:12px 16px;font-size:20px}
+  .light .e{font-size:38px}.light{padding:10px}
+  .qbox{font-size:21px;padding:12px 16px}
+  .hemi-item .pic{font-size:56px}
+  h1{font-size:56px}
+}
+@media (max-width:900px){
+  body{font-size:18px}
+  .grid2,.hero,.globe-wrap,.quiz-opts{grid-template-columns:1fr !important}
+  .brand span.t{display:none}
+  .dots{display:none}
+  .kwl td div{min-height:140px}
+}
+</style>
+</head>
+<body>
+<div class="stars"></div><div class="stars2"></div>
+<canvas id="bgGlobe"></canvas>
+
+<header class="top">
+  <div class="brand"><span class="mini-earth"></span><span class="t">Хүн ба байгаль · 5-р анги</span></div>
+  <div class="stage"><span class="stage-name" id="stageName"></span></div>
+  <div class="timer" id="timer" title="Хичээлийн үлдсэн хугацаа (2 удаа дарвал 40:00 болно)">⏱ <span id="tval">40:00</span></div>
+  <button class="tbtn" id="tPlay" title="Цаг эхлүүлэх / зогсоох">▶ Эхлэх</button>
+  <div class="music" id="music" title="Дэлхийгээ би мэднэ — дэвсгэр дуу (M)"><button class="tbtn" id="musicBtn">🎵 Дуу<span class="eq"><i></i><i></i><i></i></span></button><input type="range" id="vol" min="0" max="1" step="0.05" value="0.3" aria-label="Дууны чанга"></div>
+  <button class="tbtn" id="notesBtn" title="Багшийн тэмдэглэл (N)">📝 Багшид</button>
+  <button class="tbtn" id="fsBtn" title="Бүтэн дэлгэц (F)">⛶</button>
+</header>
+<div class="progress" id="progress"></div>
+
+<main class="deck" id="deck">
+
+<!-- 0. Танилцуулга -->
+<section class="slide" data-name="Танилцуулга" data-min="1"
+  data-notes="Хүүхдүүдтэй мэндэлж, өөрийгөө танилцуулна.|Дээд талын ▶ Эхлэх товчоор 40 минутын цагийг эхлүүлнэ. 🎵 Дуу эхний товшилтоор эхэлнэ.">
+  <div class="inner intro">
+    <div class="planet"></div>
+    <div class="school">🏫 1-р сургууль</div>
+    <h1 class="subject">Хүн байгаль</h1>
+    <div class="teacher">👩‍🏫 Багш: В. Гэрэлтуяа</div>
+  </div>
+</section>
+
+<!-- 1. Оньсого ба бичлэг -->
+<section class="slide" data-name="Сансраас Дэлхийг харцгаая" data-min="4"
+  data-notes="Тааврыг чангаар уншаад, хүүхдүүдээр хариулуулсны дараа “Хариу” товчийг дарна.|Бичлэгийг дарж тоглуулна (≈50 сек). Интернэтгүй үед ч ажиллана, гэхдээ эх газрууд интернэттэй үед харагдана.|Үзсэний дараа: Дэлхий ямар өнгөтэй, ямар хэлбэртэй байсан бэ? гэж асууна.|⬇ товчоор бичлэгийг видео файл болгон татаж авч болно.">
+  <div class="inner">
+    <h2>🚀 Сансраас Дэлхийг харцгаая</h2>
+    <p class="sub">Бичлэгийг анхааралтай ажиглаарай — ямар өнгө, ямар хэлбэр харагдаж байна?</p>
+    <div class="grid2" style="grid-template-columns:1.35fr .65fr">
+      <div class="vid" id="vid1"></div>
+      <div class="card">
+        <h3>🧩 Таавар</h3>
+        <p class="riddle">Бөмбөг шиг бөөрөнхий,<br>Бөхөөлгүй эргэлдэнэ.<br>Хөх далай, ногоон тал —<br>Хүн бүхний гэр бүл.<br><span class="muted" style="font-size:19px">Энэ юу вэ?</span></p>
+        <button class="btn green" onclick="this.nextElementSibling.classList.add('show');confetti(60)">Хариу 👀</button>
+        <div class="reveal">🌍 ДЭЛХИЙ!</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. KWL -->
+<section class="slide" data-name="Дэлхийн талаар бид юу мэдэх вэ?" data-min="3"
+  data-notes="Сурагчдын хэлсэн санааг хоёр баганад шууд бичнэ (нүдэн дээр дарж бичнэ).|“Шинээр мэдэж авлаа” баганыг хичээлийн төгсгөлд (10-р слайд) бөглөнө.|Бичсэн зүйл энэ компьютерт хадгалагдана.">
+  <div class="inner">
+    <h2>🧠 Дэлхийн талаар бид юу мэдэх вэ?</h2>
+    <p class="sub">Нүдэн дээр дарж санаагаа бичээрэй. Хичээлийн төгсгөлд юу шинээр сурснаа бичнэ шүү! 🌟</p>
+    <table class="kwl two">
+      <tr><th>✅ Би мэднэ</th><th>❓ Мэдэхийг хүсэж байна</th></tr>
+      <tr>
+        <td><div contenteditable="true" data-k="kwl1" data-ph="Жишээ нь: Дэлхий бөөрөнхий…"></div></td>
+        <td><div contenteditable="true" data-k="kwl2" data-ph="Жишээ нь: Дэлхий хэр том вэ?"></div></td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- 3. Сэдэв ба зорилго -->
+<section class="slide" data-name="Эх дэлхийгээ судалцгаая" data-min="1"
+  data-notes="Өнөөдрийн сэдэв «Эх дэлхийгээ судалцгаая»-г зарлана.|Хичээлийн зорилгыг хүүхдүүдтэй хамт уншина.|← → товч эсвэл доорх дугаараар слайд солино.">
+  <div class="inner hero">
+    <div>
+      <h1><span class="hl">Эх дэлхийгээ<br>судалцгаая!</span> 🌏</h1>
+      <p class="sub">Бид амьдардаг гайхамшигт гарагаа хамтдаа судлах аялалд гарцгаая.</p>
+      <div class="card">
+        <h3>🎯 Өнөөдөр бид:</h3>
+        <ul class="goals">
+          <li>Дэлхийн хэмжээг Нар, Сартай харьцуулна</li>
+          <li>Глобус дээрх <b>голдож</b>, <b>зэргэд</b>, <b>экваторыг</b> олно</li>
+          <li>Хойд, өмнөд, баруун, зүүн хагас бөмбөрцгийг ялгана</li>
+          <li>Хөндлөн, босоо шугамаар юмсын байрлалыг олно</li>
+        </ul>
+      </div>
+    </div>
+    <div class="hero-img">
+      <div class="orbit"><span>🌕</span></div>
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/960px-The_Earth_seen_from_Apollo_17.jpg" alt="Сансраас харсан Дэлхий (Аполлон-17, НАСА)">
+    </div>
+  </div>
+</section>
+
+<!-- 4. Хэмжээ -->
+<section class="slide" data-name="Дэлхий хэр том вэ?" data-min="5"
+  data-notes="Сурах бичгийн туршилт: том бөмбөг = Нар, одон бөмбөг = Дэлхий, үрэл = Сар. Ангид бөмбөгнүүдээ барьж үзүүлбэл илүү сонирхолтой.|Товч бүрийг дарж бодит харьцааг үзүүлнэ. “Нар ба Дэлхий” дээр Дэлхий бараг харагдахгүй жижиг болохыг онцлоно.|Аяллын тооцоолуурыг хүүхдүүдээр таамаглуулсны дараа ашиглана.">
+  <div class="inner">
+    <h2>⚖️ Дэлхий хэр том вэ?</h2>
+    <p class="sub">Дэлхийн хэмжээг Нар, Сартай <b>бодит харьцаагаар</b> харьцуулж үзье.</p>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn ghost on" data-size="em">🌍 Дэлхий ба 🌕 Сар</button>
+      <button class="btn ghost" data-size="dist">📏 Дэлхийгээс Сар хүртэлх зай</button>
+      <button class="btn ghost" data-size="sun">☀️ Нар ба 🌍 Дэлхий</button>
+    </div>
+    <div class="space" id="space">
+      <div class="sp-stars"></div>
+      <div class="distline" id="dline"></div>
+      <div class="body sun" id="bSun"></div>
+      <div class="body earth" id="bEarth"></div>
+      <div class="body moon" id="bMoon"></div>
+      <div class="lbl" id="lSun">☀️ Нар</div>
+      <div class="lbl" id="lEarth">🌍 Дэлхий</div>
+      <div class="lbl" id="lMoon">🌕 Сар</div>
+    </div>
+    <p class="size-msg" id="sizeMsg"></p>
+    <div class="grid2">
+      <table class="info-tbl">
+        <tr><th>Биет</th><th>Диаметр</th><th>Дэлхийтэй харьцуулбал</th><th>Бөмбөгөөр</th></tr>
+        <tr><td>☀️ Нар</td><td>1 392 700 км</td><td>≈109 дахин том</td><td>🏐 Том бөмбөг</td></tr>
+        <tr><td>🌍 Дэлхий</td><td>12 742 км</td><td>—</td><td>🎾 Одон бөмбөг</td></tr>
+        <tr><td>🌕 Сар</td><td>3 474 км</td><td>≈4 дахин жижиг</td><td>🫘 Жижиг үрэл</td></tr>
+      </table>
+      <div class="card travel">
+        <h3>🧮 Аяллын тооцоолуур</h3>
+        <div class="row">
+          <select id="tVeh">
+            <option value="5">🚶 Явганаар (5 км/ц)</option>
+            <option value="100" selected>🚗 Машинаар (100 км/ц)</option>
+            <option value="900">✈️ Онгоцоор (900 км/ц)</option>
+            <option value="40000">🚀 Пуужингаар (40 000 км/ц)</option>
+          </select>
+          <select id="tDest">
+            <option value="384400">🌕 Сар хүртэл (384 400 км)</option>
+            <option value="150000000">☀️ Нар хүртэл (150 сая км)</option>
+          </select>
+        </div>
+        <div class="res" id="tRes"></div>
+        <div class="muted" style="font-size:17px">Зогсолтгүй, өдөр шөнөгүй явбал…</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Глобус -->
+<section class="slide" data-name="Глобус: голдож ба зэргэд" data-min="7"
+  data-notes="Глобусыг хулганаар чирж эргүүлнэ. Товчнуудыг нэг нэгээр асааж тайлбарлана.|Анги дахь жинхэнэ глобустай зэрэгцүүлэн үзүүлбэл илүү үр дүнтэй.|Асуулт: Улаанбаатар экватороос хойд уу, өмнө үү? Анхны голдожоос баруун уу, зүүн үү?">
+  <div class="inner">
+    <h2>🌐 Глобус — Дэлхийн жижиг загвар</h2>
+    <div class="globe-wrap">
+      <div class="globe-box" id="globeBox">
+        <canvas id="globe"></canvas>
+        <div class="offline" id="gOff">🌐 Глобус ачаалахад интернэт холболт шаардлагатай.</div>
+        <div class="globe-hint">👆 Чирж эргүүлээрэй</div>
+      </div>
+      <div>
+        <div class="tog" id="gTog">
+          <button class="btn ghost on" data-g="mer"><span class="sw" style="background:#ffd23f"></span>Голдож</button>
+          <button class="btn ghost on" data-g="par"><span class="sw" style="background:#3fd0ff"></span>Зэргэд</button>
+          <button class="btn ghost on" data-g="eq"><span class="sw" style="background:#ff4d6d"></span>Экватор</button>
+          <button class="btn ghost on" data-g="pm"><span class="sw" style="background:#ff9f1c"></span>Анхны голдож</button>
+          <button class="btn ghost on" data-g="ub">📍 Улаанбаатар</button>
+          <button class="btn ghost on" data-g="spin">🔄 Эргэх</button>
+        </div>
+        <div class="tog" id="gHemi">
+          <button class="btn ghost" data-h="N">⬆️ Хойд хагас</button>
+          <button class="btn ghost" data-h="S">⬇️ Өмнөд хагас</button>
+          <button class="btn ghost" data-h="W">⬅️ Баруун хагас</button>
+          <button class="btn ghost" data-h="E">➡️ Зүүн хагас</button>
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div class="def"><b>Голдож</b> — хойд туйлаас өмнөд туйл хүртэл татсан шугам.</div>
+          <div class="def" style="background:#dcf6ff"><b style="color:#0a86b0">Зэргэд</b> — экватортой зэрэгцүүлэн татсан тойрог.</div>
+          <div class="def" style="background:#ffe6eb"><b style="color:#d6264a">Экватор</b> — Дэлхийг <b style="color:inherit">хойд</b> ба <b style="color:inherit">өмнөд</b> хагас бөмбөрцөг болгон хуваана.</div>
+          <div class="def" style="background:#fff0de"><b style="color:#d86b00">Анхны голдож</b> — 1884 онд Английн <b style="color:inherit">Гринвичийг</b> дайруулан тогтоосон. Дэлхийг <b style="color:inherit">баруун</b> ба <b style="color:inherit">зүүн</b> хагас болгон хуваана.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6. Бичлэг 2 -->
+<section class="slide" data-name="Бичлэг: голдож ба зэргэд" data-min="3"
+  data-notes="Бичлэгийг (≈55 сек) тоглуулна. Шаардлагатай бол ⏸ дарж зогсоогоод тайлбарлана.|Үзсэний дараа баруун талын асуултуудаар ярилцана.">
+  <div class="inner">
+    <h2>🎬 Голдож ба зэргэд</h2>
+    <p class="sub">Бичлэгийг үзээд дараах асуултад хариулахад бэлдээрэй.</p>
+    <div class="grid2" style="grid-template-columns:1.35fr .65fr">
+      <div class="vid" id="vid2"></div>
+      <div class="card">
+        <h3>🤔 Бодоод үзээрэй</h3>
+        <ol style="padding-left:24px;margin:0;line-height:1.7">
+          <li>Голдож хаанаас хаана хүртэл татагддаг вэ?</li>
+          <li>Аль зэргэд хамгийн урт вэ?</li>
+          <li>Зэргэдүүд хоорондоо огтлолцох уу?</li>
+          <li>Бүх голдож хаана нийлдэг вэ?</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. Хашаа -->
+<section class="slide" data-name="Хашаан доторх юмсын байрлал" data-min="4"
+  data-notes="Сурах бичгийн х.27-гийн хашааны жишээ. Эхлээд баганын үсэг (А–Е), дараа нь эгнээний тоо (1–5)-г хэлнэ гэдгийг тайлбарлана.|Сурагчдыг ээлжлэн самбарт гаргаж тоглуулна.|Дүгнэлт: Глобус, газрын зураг дээр яг ийм хөндлөн, босоо шугам ашигладаг.">
+  <div class="inner">
+    <h2>🏡 Хашаан доторх юмсын байрлал</h2>
+    <p class="sub">Баганыг <b>үсгээр (А–Е)</b>, эгнээг <b>тоогоор (1–5)</b> тэмдэглэсэн. Эхлээд үсэг, дараа нь тоо!</p>
+    <div class="grid2" style="grid-template-columns:1.1fr .9fr;align-items:start">
+      <div class="yard" id="yard"></div>
+      <div>
+        <div class="row" style="margin-bottom:12px">
+          <button class="btn ghost on" data-ym="find">🔎 Нүдийг ол</button>
+          <button class="btn ghost" data-ym="name">🏷️ Байрлалыг хэл</button>
+        </div>
+        <div class="qbox" id="yQ"></div>
+        <div class="choices" id="yChoices"></div>
+        <div class="feedback" id="yFb"></div>
+        <div class="row" style="justify-content:space-between;margin-top:8px">
+          <span class="score">⭐ Оноо: <span id="yScore">0</span></span>
+          <button class="btn sun" id="yNext">Дараагийн асуулт ▶</button>
+        </div>
+        <div class="note">📌 Яг үүнтэй адил глобус, газрын зураг дээр <b>зэргэд</b> (хөндлөн) ба <b>голдож</b> (босоо) шугамаар байрлалыг олдог.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8. Хагас бөмбөрцөг тоглоом -->
+<section class="slide" data-name="Хаана байдаг вэ? — Хагас бөмбөрцөг" data-min="4"
+  data-notes="Зураг дээрх амьтан, газар Дэлхийн аль хэсэгт байдгийг таавуулна.|Хүүхдүүд эхлээд экватороос дээш үү, доош уу (хойд/өмнөд), дараа нь анхны голдожоос баруун уу, зүүн үү гэдгийг бодно.|Газрын зураг дээрх зөв хэсэг эсвэл доорх товчийг дарна. Хариулсны дараа жинхэнэ байрлал нь 📍-ээр гарна.">
+  <div class="inner">
+    <h2>🧭 Хаана байдаг вэ?</h2>
+    <p class="sub"><b style="color:#ff8fa3">Экватор</b> ба <b style="color:#ffc46b">анхны голдож</b> Дэлхийг 4 хэсэгт хуваана. Зураг дээрх зүйл аль хэсэгт байдаг вэ?</p>
+    <div class="grid2" style="grid-template-columns:1.2fr .8fr;align-items:start">
+      <div class="hemi-map"><svg id="hmap" viewBox="0 0 960 480"></svg></div>
+      <div class="card">
+        <div class="hemi-item"><div class="pic" id="hPic">🐼</div><div><div style="font-size:26px;font-weight:900" id="hName"></div><div class="muted" id="hWhere"></div></div></div>
+        <div class="qbtns" id="hBtns">
+          <button class="btn ghost" data-q="NW">↖️ Хойд · Баруун</button>
+          <button class="btn ghost" data-q="NE">↗️ Хойд · Зүүн</button>
+          <button class="btn ghost" data-q="SW">↙️ Өмнөд · Баруун</button>
+          <button class="btn ghost" data-q="SE">↘️ Өмнөд · Зүүн</button>
+        </div>
+        <div class="feedback" id="hFb"></div>
+        <div class="row" style="justify-content:space-between">
+          <span class="score" style="color:var(--green-d)">⭐ <span id="hScore">0</span> / <span id="hTot">0</span></span>
+          <button class="btn sun" id="hNext">Дараах ▶</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9. Тест -->
+<section class="slide" data-name="Шалгацгаая!" data-min="4"
+  data-notes="Асуулт бүрийг ангиараа уншаад, гараа өргөж хариулсны дараа сонголтыг дарна.|Эсвэл багаар (4 баг = 4 өнгө) өрсөлдүүлж болно.">
+  <div class="inner" id="quiz"></div>
+</section>
+
+<!-- 10. Шинээр мэдэж авлаа -->
+<section class="slide" data-name="Шинээр юу мэдэж авсан бэ?" data-min="2"
+  data-notes="Хичээлийн эхэнд бичсэн 2 баганыг ангиараа уншина (энд зөвхөн харагдана).|“Мэдэхийг хүсэж байна” асуултууд бүгд хариулт авсан эсэхийг ярилцана.|Хүүхдүүдийн шинээр сурсан зүйлийг ногоон баганад бичнэ.">
+  <div class="inner">
+    <h2>🌟 Бид шинээр юу мэдэж авсан бэ?</h2>
+    <p class="sub">Хичээлийн эхэнд юу мэддэг, юу мэдэхийг хүсэж байснаа санацгаая. Одоо шинээр юу сурснаа <b>ногоон баганад</b> бичээрэй.</p>
+    <table class="kwl end">
+      <tr><th>✅ Би мэднэ</th><th>❓ Мэдэхийг хүсэж байна</th><th>🌟 Шинээр мэдэж авлаа</th></tr>
+      <tr>
+        <td><div class="ro" data-mirror="kwl1"></div></td>
+        <td><div class="ro" data-mirror="kwl2"></div></td>
+        <td><div contenteditable="true" data-k="kwl3" data-ph="Жишээ нь: Голдож туйлаас туйл хүртэл татагддаг…"></div></td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- 11. Дүгнэлт -->
+<section class="slide" data-name="Бид юу сурсан бэ?" data-min="2"
+  data-notes="Гол санааг ангиараа давтана.|Гэрлэн дохиогоор сурагчид өөрсдийгөө үнэлнэ — товчийг дарж тоолно.|Гэрийн даалгаврыг өгнө.">
+  <div class="inner">
+    <h2>🌟 Бид өнөөдөр юу сурсан бэ?</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>📚 Гол санаа</h3>
+        <ul style="margin:0;padding-left:22px">
+          <li>Нар Дэлхийгээс ≈<b>109</b> дахин, Дэлхий Сарнаас ≈<b>4</b> дахин том.</li>
+          <li><b>Глобус</b> бол Дэлхийн жижигрүүлсэн загвар.</li>
+          <li><b>Голдож</b> — туйлаас туйл хүртэл, <b>зэргэд</b> — экватортой зэрэгцээ.</li>
+          <li><b>Экватор</b>: хойд/өмнөд, <b>анхны голдож</b>: баруун/зүүн хагас.</li>
+          <li>Монгол улс <b>хойд</b> ба <b>зүүн</b> хагас бөмбөрцөгт оршдог.</li>
+        </ul>
+        <div class="note">🏠 <b>Гэрийн даалгавар:</b> Жүрж эсвэл бөмбөг дээр экватор, анхны голдож, 2 зэргэд, 2 голдожийг зурж, хойд ба өмнөд туйлыг тэмдэглээрэй.</div>
+      </div>
+      <div class="card">
+        <h3>🚦 Өнөөдрийн хичээлийг би…</h3>
+        <div class="lights">
+          <button class="light" data-l="g"><div class="e">🟢</div>Сайн ойлгосон<div class="n">0</div></button>
+          <button class="light" data-l="y"><div class="e">🟡</div>Бага зэрэг ойлгосон<div class="n">0</div></button>
+          <button class="light" data-l="r"><div class="e">🔴</div>Тусламж хэрэгтэй<div class="n">0</div></button>
+        </div>
+        <p class="muted" style="font-size:17px">Сурагч бүр өөрийн өнгөн дээр нэг удаа дарна.</p>
+        <button class="btn ghost" id="lReset">↺ Тэглэх</button>
+        <p style="font-size:28px;font-weight:900;text-align:center;margin:16px 0 0;color:var(--green-d)">Баярлалаа! Эх дэлхийгээ хайрлацгаая 💚🌍</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<nav class="nav">
+  <button class="btn ghost" id="prevBtn">◀ Өмнөх</button>
+  <div class="dots" id="dots"></div>
+  <button class="btn" id="nextBtn">Дараах ▶</button>
+</nav>
+
+<div class="tnotes" id="tnotes"><h4>📝 Багшид зориулсан зөвлөмж</h4><ul id="tnList"></ul></div>
+<canvas id="confetti"></canvas>
+<audio id="bgm" loop preload="auto"></audio>
+
+<script>
+/* ---------- Safe storage ---------- */
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const kwlMem={};
+const HAS_D3=!!(window.d3&&window.topojson);
+let land=null;
+
+/* ---------- Shared Earth drawing ---------- */
+function drawEarth(ctx,cx,cy,R,rot,o={}){
+  const p=d3.geoOrthographic().scale(R).translate([cx,cy]).rotate(rot).clipAngle(90);
+  const path=d3.geoPath(p,ctx);
+  if(o.glow!==false){
+    const g=ctx.createRadialGradient(cx,cy,R*0.92,cx,cy,R*1.22);
+    g.addColorStop(0,'rgba(110,190,255,.55)');g.addColorStop(1,'rgba(110,190,255,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R*1.22,0,7);ctx.fill();
+  }
+  const oc=ctx.createRadialGradient(cx-R*.35,cy-R*.35,R*.1,cx,cy,R);
+  oc.addColorStop(0,'#58b4ff');oc.addColorStop(1,'#0d4fa8');
+  ctx.beginPath();path({type:'Sphere'});ctx.fillStyle=oc;ctx.fill();
+  if(land){ctx.beginPath();path(land);ctx.fillStyle=o.landColor||'#5cc46e';ctx.fill();ctx.strokeStyle='rgba(20,90,40,.55)';ctx.lineWidth=Math.max(.6,R/400);ctx.stroke()}
+  if(o.sunAngle!=null){ctx.save();ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.clip();const dx=Math.cos(o.sunAngle)*R,dy=Math.sin(o.sunAngle)*R,ng=ctx.createLinearGradient(cx+dx,cy+dy,cx-dx,cy-dy);ng.addColorStop(0,'rgba(2,8,35,0)');ng.addColorStop(.42,'rgba(2,8,35,0)');ng.addColorStop(.62,'rgba(2,8,35,.7)');ng.addColorStop(1,'rgba(2,8,35,.8)');ctx.fillStyle=ng;ctx.fillRect(cx-R,cy-R,2*R,2*R);ctx.restore()}
+  // soft shading
+  const sh=ctx.createRadialGradient(cx-R*.4,cy-R*.4,R*.2,cx,cy,R*1.02);
+  sh.addColorStop(0,'rgba(255,255,255,.12)');sh.addColorStop(.7,'rgba(0,0,0,0)');sh.addColorStop(1,'rgba(0,10,40,.35)');
+  ctx.beginPath();path({type:'Sphere'});ctx.fillStyle=sh;ctx.fill();
+  return {p,path};
+}
+function visibleOn(p,pt){const r=p.rotate();return d3.geoDistance(pt,[-r[0],-r[1]])<Math.PI/2-0.02}
+
+/* ---------- Background globe ---------- */
+const bg=document.getElementById('bgGlobe'),bgx=bg.getContext('2d');let bgRot=-60,bgLast=0;
+function bgSize(){const d=Math.min(2,devicePixelRatio||1);bg.width=innerWidth*d;bg.height=innerHeight*d;bgx.setTransform(d,0,0,d,0,0)}
+function bgDraw(ts){
+  requestAnimationFrame(bgDraw);
+  if(ts-bgLast<60)return;bgLast=ts;
+  const W=innerWidth,H=innerHeight;bgx.clearRect(0,0,W,H);
+  if(!HAS_D3)return;
+  bgRot+=0.12;
+  const R=Math.max(W,H)*0.42;
+  bgx.globalAlpha=.9;
+  drawEarth(bgx,W*0.92,H+R*0.42,R,[bgRot,-28]);
+  bgx.globalAlpha=1;
+}
+bgSize();addEventListener('resize',bgSize);requestAnimationFrame(bgDraw);
+
+/* ---------- Slides ---------- */
+const slides=[...document.querySelectorAll('.slide')];
+const dots=document.getElementById('dots');
+let cur=0;
+slides.forEach((s,i)=>{const b=document.createElement('button');b.className='dot';b.textContent=i+1;b.title=s.dataset.name;b.onclick=()=>go(i);dots.appendChild(b)});
+function go(i){
+  cur=Math.max(0,Math.min(slides.length-1,i));
+  slides.forEach((s,j)=>s.classList.toggle('active',j===cur));
+  [...dots.children].forEach((d,j)=>{d.classList.toggle('on',j===cur);d.classList.toggle('done',j<cur)});
+  const s=slides[cur];
+  document.getElementById('stageName').textContent=(cur+1)+'. '+s.dataset.name;
+  document.getElementById('progress').style.width=((cur+1)/slides.length*100)+'%';
+  document.getElementById('tnList').innerHTML='<li>⏱ Зөвлөмж хугацаа: ≈'+s.dataset.min+' мин</li>'+s.dataset.notes.split('|').map(t=>'<li>'+t+'</li>').join('');
+  document.getElementById('prevBtn').disabled=cur===0;
+  document.getElementById('nextBtn').textContent=cur===slides.length-1?'🏁 Төгсгөл':'Дараах ▶';
+  if(s.querySelector('#globe'))resizeGlobe();
+  s.querySelectorAll('[data-mirror]').forEach(m=>m.textContent=kwlMem[m.dataset.mirror]||'');
+  videos.forEach(v=>{if(!s.contains(v.el))v.pause()});
+}
+document.getElementById('prevBtn').onclick=()=>go(cur-1);
+document.getElementById('nextBtn').onclick=()=>go(cur+1);
+document.addEventListener('keydown',e=>{
+  if(e.target.isContentEditable||e.target.tagName==='SELECT')return;
+  if(e.key==='ArrowRight'||e.key==='PageDown')go(cur+1);
+  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(cur-1);
+  else if(e.key==='f'||e.key==='F')toggleFS();
+  else if(e.key==='n'||e.key==='N')toggleNotes();
+  else if(e.key==='m'||e.key==='M')musicToggle();
+});
+function toggleFS(){if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.()}
+function toggleNotes(){document.getElementById('tnotes').classList.toggle('show')}
+document.getElementById('fsBtn').onclick=toggleFS;
+document.getElementById('notesBtn').onclick=toggleNotes;
+
+/* ---------- Background music ---------- */
+const bgm=document.getElementById('bgm'),musicEl=document.getElementById('music'),vol=document.getElementById('vol');
+bgm.src=encodeURI('Delhiigee Bi Medne (дэлхийгээ би мэднэ).mp3');
+vol.value=store.get('lesson-vol')||'0.3';bgm.volume=+vol.value;
+let musicWanted=store.get('lesson-music')!=='off';
+function musicUI(){musicEl.classList.toggle('on',!bgm.paused)}
+function musicPlay(){bgm.play().then(musicUI).catch(()=>{})}
+function musicToggle(){if(bgm.paused){musicWanted=true;musicPlay()}else{musicWanted=false;bgm.pause();musicUI()}store.set('lesson-music',musicWanted?'on':'off')}
+document.getElementById('musicBtn').onclick=e=>{e.stopPropagation();musicToggle()};
+vol.oninput=()=>{bgm.volume=+vol.value;store.set('lesson-vol',vol.value)};
+bgm.onerror=()=>{musicEl.style.opacity=.45;musicEl.title='Дууны файл олдсонгүй: HTML файлтай нэг фолдерт байх ёстой'};
+// Хөтөч эхний товшилтын дараа л дуу тоглуулахыг зөвшөөрдөг
+const firstGesture=()=>{if(musicWanted&&bgm.paused)musicPlay();removeEventListener('pointerdown',firstGesture,true);removeEventListener('keydown',firstGesture,true)};
+addEventListener('pointerdown',firstGesture,true);addEventListener('keydown',firstGesture,true);
+musicPlay();
+
+/* ---------- Timer ---------- */
+let remain=40*60,running=false,tick=null;
+const tval=document.getElementById('tval'),timerEl=document.getElementById('timer'),tPlay=document.getElementById('tPlay');
+function drawT(){const a=Math.abs(remain),m=Math.floor(a/60),s=a%60;tval.textContent=(remain<0?'+':'')+m+':'+String(s).padStart(2,'0');timerEl.className='timer'+(remain<0?' over':remain<=300?' warn':'')}
+tPlay.onclick=()=>{running=!running;tPlay.textContent=running?'⏸ Зогсоох':'▶ Үргэлжлүүлэх';if(running)tick=setInterval(()=>{remain--;drawT()},1000);else clearInterval(tick)};
+timerEl.ondblclick=()=>{remain=40*60;drawT()};
+drawT();
+
+/* ---------- Self-made video player ---------- */
+const videos=[];
+const VW=1280,VH=720;
+const vStars=Array.from({length:220},()=>({x:Math.random()*VW,y:Math.random()*VH,r:Math.random()*1.6+.3,p:Math.random()*6}));
+function vSpace(ctx,T){
+  const g=ctx.createRadialGradient(VW*.3,VH*.2,50,VW*.5,VH*.5,VW*.8);g.addColorStop(0,'#16245c');g.addColorStop(1,'#03061a');
+  ctx.fillStyle=g;ctx.fillRect(0,0,VW,VH);
+  vStars.forEach(s=>{ctx.globalAlpha=.45+.55*Math.abs(Math.sin(T*1.5+s.p));ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill()});ctx.globalAlpha=1;
+}
+function vCaption(ctx,text,a=1){
+  if(!text)return;
+  ctx.save();ctx.globalAlpha=a;ctx.font='800 38px Nunito, sans-serif';
+  const lines=text.split('\n'),lh=48,w=Math.max(...lines.map(l=>ctx.measureText(l).width))+64,h=lines.length*lh+28;
+  const x=(VW-w)/2,y=VH-h-26;
+  ctx.fillStyle='rgba(4,10,35,.78)';ctx.beginPath();ctx.roundRect(x,y,w,h,22);ctx.fill();
+  ctx.strokeStyle='rgba(127,240,173,.6)';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+  lines.forEach((l,i)=>ctx.fillText(l,VW/2,y+14+lh/2+i*lh));ctx.restore();
+}
+function vTitle(ctx,text,y,size,color,a=1){ctx.save();ctx.globalAlpha=a;ctx.font=`900 ${size}px Nunito, sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=8;ctx.strokeStyle='rgba(0,0,0,.55)';ctx.strokeText(text,VW/2,y);ctx.fillStyle=color;ctx.fillText(text,VW/2,y);ctx.restore()}
+function vLabel(ctx,text,x,y,color='#fff',size=26){ctx.save();ctx.font=`800 ${size}px Nunito, sans-serif`;ctx.textAlign='center';ctx.lineWidth=6;ctx.strokeStyle='rgba(0,0,0,.7)';ctx.strokeText(text,x,y);ctx.fillStyle=color;ctx.fillText(text,x,y);ctx.restore()}
+function vLine(ctx,path,geo,color,w){ctx.beginPath();path(geo);ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.stroke()}
+const ease=k=>k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+const fade=(k,a=.12)=>Math.min(1,k/a,(1-k)/a);
+
+function makeVideo(el,scenes,fileName){
+  el.innerHTML=`<canvas width="${VW}" height="${VH}"></canvas><div class="vbar"><button class="pp">▶ Тоглуулах</button><button class="rs" title="Эхнээс нь">⏮</button><div class="vprog"><i></i></div><span class="vtime">0:00 / 0:00</span><button class="dl" title="Видео файл болгон татах">⬇ Татах</button><button class="fs" title="Томруулах">⛶</button></div>`;
+  const cv=el.querySelector('canvas'),ctx=cv.getContext('2d'),pp=el.querySelector('.pp'),bar=el.querySelector('.vprog i'),tm=el.querySelector('.vtime'),dl=el.querySelector('.dl');
+  const total=scenes.reduce((a,s)=>a+s.d,0);
+  const fmt=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+  let t=0,playing=false,last=0,rec=null;
+  function render(){
+    let acc=0,sc=scenes[scenes.length-1],lt=sc.d;
+    for(const s of scenes){if(t<acc+s.d){sc=s;lt=t-acc;break}acc+=s.d}
+    const k=Math.min(1,lt/sc.d);
+    ctx.save();sc.draw(ctx,k,t,lt);ctx.restore();
+    const c=typeof sc.cap==='function'?sc.cap(k):sc.cap;vCaption(ctx,c,Math.min(1,lt/.4));
+    // fade between scenes
+    const edge=Math.min(lt,sc.d-lt);if(edge<.3&&t>.05&&t<total-.05){ctx.fillStyle=`rgba(0,0,0,${(1-edge/.3)*.8})`;ctx.fillRect(0,0,VW,VH)}
+    bar.style.width=(t/total*100)+'%';tm.textContent=fmt(t)+' / '+fmt(total);
+  }
+  function loop(ts){
+    if(!playing)return;
+    t+=Math.min(.1,(ts-last)/1000);last=ts;
+    if(t>=total){t=total;render();stop();return}
+    render();requestAnimationFrame(loop);
+  }
+  function play(){if(t>=total)t=0;playing=true;pp.textContent='⏸ Зогсоох';last=performance.now();requestAnimationFrame(loop)}
+  function pause(){playing=false;pp.textContent='▶ Тоглуулах'}
+  function stop(){pause();if(rec){rec.stop()}}
+  pp.onclick=()=>playing?pause():play();
+  cv.onclick=()=>playing?pause():play();
+  el.querySelector('.rs').onclick=()=>{t=0;render();if(!playing)play()};
+  el.querySelector('.vprog').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();t=(e.clientX-r.left)/r.width*total;render()};
+  el.querySelector('.fs').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else el.requestFullscreen?.()};
+  if(!(cv.captureStream&&window.MediaRecorder))dl.style.display='none';
+  dl.onclick=()=>{
+    if(rec)return;
+    const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m=>MediaRecorder.isTypeSupported(m));
+    const stream=cv.captureStream(30),chunks=[];
+    rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:6e6}:undefined);
+    rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+    rec.onstop=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(chunks,{type:'video/webm'}));a.download=fileName;document.body.appendChild(a);a.click();a.remove();rec=null;dl.textContent='⬇ Татах'};
+    dl.textContent='⏺ Бичиж байна…';rec.start();t=0;play();
+  };
+  const api={el,pause,render};videos.push(api);
+  document.fonts?.ready.then(render);render();
+  return api;
+}
+
+/* ---------- Video 1: Сансраас Дэлхий ---------- */
+const UB=[106.9,47.9];
+makeVideo(document.getElementById('vid1'),[
+  {d:6,cap:k=>k<.5?'🚀 Сансарт аялцгаая!':'Бидний гэр хаана байна вэ? 🤔',draw(ctx,k,T){
+    vSpace(ctx,T);
+    const x=-120+k*(VW+240),y=VH*.55-Math.sin(k*Math.PI)*170;
+    ctx.save();ctx.translate(x,y);ctx.rotate(-.35+Math.cos(k*Math.PI)*.3);ctx.font='120px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🚀',0,0);ctx.restore();
+    for(let i=1;i<8;i++){ctx.fillStyle=`rgba(255,200,90,${.5-i*.06})`;ctx.beginPath();ctx.arc(x-i*26,y+Math.sin(k*Math.PI)*i*6+i*8,18-i*2,0,7);ctx.fill()}
+    vTitle(ctx,'ЭХ ДЭЛХИЙ',VH*.24,92,'#7ff0ad',Math.min(1,k*3))
+  }},
+  {d:9,cap:k=>k<.55?'Алсаас нэгэн цэнхэр бөмбөг харагдаж байна…':'Энэ бол бидний гэр — ДЭЛХИЙ! 🌍',draw(ctx,k,T){
+    vSpace(ctx,T);
+    const R=18+ease(k)*245;
+    if(HAS_D3)drawEarth(ctx,VW/2,VH*.45,R,[-T*20,-20]);
+  }},
+  {d:10,cap:k=>k<.5?'Дэлхий Нарыг тойрон эргэдэг — 1 жил ☀️':'Сар Дэлхийг тойрон эргэдэг 🌕',draw(ctx,k,T){
+    vSpace(ctx,T);
+    const sx=VW*.5,sy=VH*.42;
+    const sg=ctx.createRadialGradient(sx,sy,10,sx,sy,170);sg.addColorStop(0,'#fff6c0');sg.addColorStop(.35,'#ffc02e');sg.addColorStop(.55,'rgba(255,140,30,.6)');sg.addColorStop(1,'rgba(255,120,0,0)');
+    ctx.fillStyle=sg;ctx.beginPath();ctx.arc(sx,sy,170,0,7);ctx.fill();
+    vLabel(ctx,'Нар',sx,sy+8,'#5a3300',30);
+    ctx.setLineDash([10,10]);ctx.strokeStyle='rgba(180,210,255,.5)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(sx,sy,440,170,0,0,7);ctx.stroke();ctx.setLineDash([]);
+    const a=k*Math.PI*2*1.1+.6,ex=sx+Math.cos(a)*440,ey=sy+Math.sin(a)*170;
+    if(HAS_D3)drawEarth(ctx,ex,ey,34,[-T*90,-20],{sunAngle:Math.atan2(sy-ey,sx-ex)});
+    vLabel(ctx,'Дэлхий',ex,ey-46,'#9fd0ff',24);
+    const ma=T*4;ctx.strokeStyle='rgba(255,255,255,.3)';ctx.beginPath();ctx.arc(ex,ey,70,0,7);ctx.stroke();
+    ctx.fillStyle='#d9d9d9';ctx.beginPath();ctx.arc(ex+Math.cos(ma)*70,ey+Math.sin(ma)*70,10,0,7);ctx.fill();
+  }},
+  {d:10,cap:k=>k<.5?'Дэлхий өөрийн тэнхлэгээ тойрон эргэдэг 🔄':'Нар тусвал — өдөр ☀️, тусахгүй бол — шөнө 🌙',draw(ctx,k,T){
+    vSpace(ctx,T);
+    const sg=ctx.createRadialGradient(-40,VH*.45,10,-40,VH*.45,260);sg.addColorStop(0,'#fff6c0');sg.addColorStop(.3,'#ffc02e');sg.addColorStop(1,'rgba(255,140,0,0)');
+    ctx.fillStyle=sg;ctx.beginPath();ctx.arc(-40,VH*.45,260,0,7);ctx.fill();
+    ctx.strokeStyle='rgba(255,220,120,.35)';ctx.lineWidth=3;for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(220,VH*.45+i*70);ctx.lineTo(380,VH*.45+i*70);ctx.stroke()}
+    if(HAS_D3)drawEarth(ctx,VW*.58,VH*.45,250,[-T*45,-18],{sunAngle:Math.PI});
+    ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=3;ctx.setLineDash([12,8]);ctx.beginPath();ctx.moveTo(VW*.58,VH*.45-300);ctx.lineTo(VW*.58,VH*.45+300);ctx.stroke();ctx.setLineDash([]);
+    vLabel(ctx,'☀️ Өдөр',VW*.46,VH*.13,'#ffe07a',34);vLabel(ctx,'🌙 Шөнө',VW*.72,VH*.13,'#b9c8ff',34);
+  }},
+  {d:8,cap:'📍 Бид энд — Монгол улсад амьдардаг!',draw(ctx,k,T){
+    vSpace(ctx,T);
+    if(HAS_D3){const rot=[-200+94*ease(Math.min(1,k*1.6)),-38];const {p}=drawEarth(ctx,VW/2,VH*.46,260,rot);
+      if(visibleOn(p,UB)){const [x,y]=p(UB),pr=10+Math.abs(Math.sin(T*4))*12;
+        ctx.strokeStyle='rgba(255,60,90,.8)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x,y,pr+8,0,7);ctx.stroke();
+        ctx.fillStyle='#ff2d55';ctx.beginPath();ctx.arc(x,y,10,0,7);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();
+        if(k>.5)vLabel(ctx,'Монгол улс',x,y-34,'#fff',32)}}
+  }},
+  {d:6,cap:'Дэлхий ямар хэлбэртэй вэ? 🤔',draw(ctx,k,T){
+    vSpace(ctx,T);if(HAS_D3)drawEarth(ctx,VW/2,VH*.43,210+Math.sin(T*2)*6,[-T*30,-20]);
+    vTitle(ctx,'⚽ ? 📄 ? 🧊 ?',VH*.1,58,'#ffd36b',Math.min(1,k*3));
+  }},
+],'Sansraas_Delkhii.webm');
+
+/* ---------- Video 2: Голдож ба зэргэд ---------- */
+const mers=[-180,-150,-120,-90,-60,-30,0,30,60,90,120,150];
+function partialMeridian(lon,f){return{type:'LineString',coordinates:d3.range(90,90-180*f-0.001,-3).map(la=>[lon,la])}}
+function partialParallel(lat,f){return{type:'LineString',coordinates:d3.range(-180,-180+360*f+0.001,4).map(lo=>[lo,lat])}}
+function globeStand(ctx,cx,cy,R){
+  ctx.save();ctx.strokeStyle='#c98a3c';ctx.lineWidth=10;ctx.beginPath();ctx.arc(cx,cy,R+22,Math.PI*.62,Math.PI*1.38,false);ctx.stroke();
+  ctx.fillStyle='#8a5522';ctx.fillRect(cx-14,cy+R+10,28,40);ctx.beginPath();ctx.ellipse(cx,cy+R+54,120,20,0,0,7);ctx.fillStyle='#a8692c';ctx.fill();ctx.restore();
+}
+makeVideo(document.getElementById('vid2'),[
+  {d:5,cap:'Глобус — Дэлхийн жижигрүүлсэн загвар 🌐',draw(ctx,k,T){
+    vSpace(ctx,T);const R=230,cx=VW/2,cy=VH*.42;globeStand(ctx,cx,cy,R);
+    if(HAS_D3)drawEarth(ctx,cx,cy,R*ease(Math.min(1,k*2))+1,[-T*25,-20]);
+  }},
+  {d:7,cap:'Дээд цэг — ХОЙД ТУЙЛ, доод цэг — ӨМНӨД ТУЙЛ',draw(ctx,k,T){
+    vSpace(ctx,T);const R=230,cx=VW/2,cy=VH*.42;globeStand(ctx,cx,cy,R);
+    if(!HAS_D3)return;const {p}=drawEarth(ctx,cx,cy,R,[-T*25,-15]);
+    const pr=8+Math.abs(Math.sin(T*4))*8;
+    [[[0,90],'Хойд туйл','#fff'],[[0,-90],'Өмнөд туйл','#fff']].forEach(([pt,t])=>{if(visibleOn(p,pt)){const [x,y]=p(pt);ctx.fillStyle='#ffd23f';ctx.beginPath();ctx.arc(x,y,pr,0,7);ctx.fill();vLabel(ctx,t,x+130,y+8,'#ffe07a',32)}});
+    const [nx,ny]=p([0,90]);ctx.strokeStyle='rgba(255,255,255,.6)';ctx.setLineDash([10,8]);ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(nx,ny-60);ctx.lineTo(cx*2-nx,cy*2-ny+60);ctx.stroke();ctx.setLineDash([]);
+  }},
+  {d:9,cap:'Хойд туйлаас Өмнөд туйл хүртэл татсан шугам — ГОЛДОЖ',draw(ctx,k,T){
+    vSpace(ctx,T);const R=230,cx=VW/2,cy=VH*.42;globeStand(ctx,cx,cy,R);
+    if(!HAS_D3)return;const {path}=drawEarth(ctx,cx,cy,R,[-T*18,-15]);
+    const n=mers.length,prog=k*1.15*n;
+    mers.forEach((lo,i)=>{const f=Math.max(0,Math.min(1,prog-i));if(f>0)vLine(ctx,path,partialMeridian(lo,f),'#ffd23f',4)});
+  }},
+  {d:8,cap:k=>k<.55?'ЭКВАТОР — хоёр туйлаас ижил зайд орших хамгийн урт зэргэд':'Экватор Дэлхийг ХОЙД ба ӨМНӨД хагас болгоно',draw(ctx,k,T){
+    vSpace(ctx,T);const R=230,cx=VW/2,cy=VH*.42;globeStand(ctx,cx,cy,R);
+    if(!HAS_D3)return;const {path,p}=drawEarth(ctx,cx,cy,R,[-T*18,-15]);
+    if(k>.55){ctx.beginPath();path(d3.geoCircle().center([0,90]).radius(90)());ctx.fillStyle='rgba(255,210,63,.35)';ctx.fill();vLabel(ctx,'Хойд хагас',cx,cy-R*.55,'#fff',34);vLabel(ctx,'Өмнөд хагас',cx,cy+R*.6,'#fff',34)}
+    vLine(ctx,path,partialParallel(0,Math.min(1,k*2)),'#ff4d6d',7);
+  }},
+  {d:8,cap:'Экватортой зэрэгцүүлэн татсан тойрог — ЗЭРЭГД',draw(ctx,k,T){
+    vSpace(ctx,T);const R=230,cx=VW/2,cy=VH*.42;globeStand(ctx,cx,cy,R);
+    if(!HAS_D3)return;const {path}=drawEarth(ctx,cx,cy,R,[-T*18,-15]);
+    vLine(ctx,path,partialParallel(0,1),'#ff4d6d',6);
+    [30,-30,60,-60].forEach((la,i)=>{const f=Math.max(0,Math.min(1,k*5-i));if(f>0)vLine(ctx,path,partialParallel(la,f),'#3fd0ff',4)});
+  }},
+  {d:9,cap:k=>k<.5?'1884 онд Английн Гринвичийг дайрсан шугамыг':'АНХНЫ ГОЛДОЖ гэж тогтоосон',draw(ctx,k,T){
+    vSpace(ctx,T);const R=230,cx=VW/2,cy=VH*.42;globeStand(ctx,cx,cy,R);
+    if(!HAS_D3)return;const rot=[d3.interpolateNumber(-80,-8)(ease(Math.min(1,k*1.5))),-30];
+    const {path,p}=drawEarth(ctx,cx,cy,R,rot);
+    vLine(ctx,path,partialMeridian(0,Math.max(0,Math.min(1,(k-.3)*2))),'#ff9f1c',7);
+    const gw=[0,51.5];if(visibleOn(p,gw)){const [x,y]=p(gw);ctx.fillStyle='#ff2d55';ctx.beginPath();ctx.arc(x,y,9,0,7);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();vLabel(ctx,'Гринвич',x-90,y-14,'#ffc46b',30)}
+  }},
+  {d:8,cap:k=>k<.5?'Анхны голдожоос баруун тийш — БАРУУН хагас':'Анхны голдожоос зүүн тийш — ЗҮҮН хагас',draw(ctx,k,T){
+    vSpace(ctx,T);const R=230,cx=VW/2,cy=VH*.42;globeStand(ctx,cx,cy,R);
+    if(!HAS_D3)return;const {path}=drawEarth(ctx,cx,cy,R,[-8,-20]);
+    ctx.beginPath();path(d3.geoCircle().center([k<.5?-90:90,0]).radius(90)());ctx.fillStyle='rgba(255,210,63,.38)';ctx.fill();
+    vLine(ctx,path,partialMeridian(0,1),'#ff9f1c',7);
+    vLabel(ctx,k<.5?'⬅ Баруун хагас':'Зүүн хагас ➡',k<.5?cx-R*.5:cx+R*.5,cy,'#fff',34);
+  }},
+  {d:6,cap:'Голдож + Зэргэд = байрлалыг олох туслах шугамууд! ✨',draw(ctx,k,T){
+    vSpace(ctx,T);const R=230,cx=VW/2,cy=VH*.42;globeStand(ctx,cx,cy,R);
+    if(!HAS_D3)return;const {path}=drawEarth(ctx,cx,cy,R,[-T*25,-15]);
+    mers.forEach(lo=>vLine(ctx,path,partialMeridian(lo,1),'#ffd23f',3));
+    [30,-30,60,-60].forEach(la=>vLine(ctx,path,partialParallel(la,1),'#3fd0ff',3));
+    vLine(ctx,path,partialParallel(0,1),'#ff4d6d',6);vLine(ctx,path,partialMeridian(0,1),'#ff9f1c',6);
+  }},
+],'Goldoj_ba_zerged.webm');
+
+/* ---------- KWL ---------- */
+document.querySelectorAll('[data-k]').forEach(el=>{const k=el.dataset.k;kwlMem[k]=store.get(k)||'';el.textContent=kwlMem[k];el.addEventListener('input',()=>{kwlMem[k]=el.innerText;store.set(k,kwlMem[k])})});
+
+/* ---------- Size comparison ---------- */
+const space=document.getElementById('space');
+const B={sun:document.getElementById('bSun'),earth:document.getElementById('bEarth'),moon:document.getElementById('bMoon')};
+const L={sun:document.getElementById('lSun'),earth:document.getElementById('lEarth'),moon:document.getElementById('lMoon')};
+const dline=document.getElementById('dline');
+function place(k,x,d,show=true){const b=B[k],l=L[k],h=space.clientHeight;b.style.left=x+'px';b.style.width=b.style.height=d+'px';b.style.opacity=show?1:0;l.style.left=x+'px';l.style.top=Math.min(h-30,h/2+Math.max(d,4)/2+8)+'px';l.style.opacity=show?1:0}
+let sizeMode='em';
+function layoutSize(){
+  const W=space.clientWidth,H=space.clientHeight,msg=document.getElementById('sizeMsg');
+  if(!W)return;dline.style.opacity=0;
+  if(sizeMode==='em'){
+    const e=Math.min(H*0.68,W*0.35);
+    place('sun',-400,10,false);place('earth',W*0.38,e);place('moon',W*0.38+e/2+e*0.27/2+60,e*0.273);
+    msg.innerHTML='🌍 Дэлхийн дотор ойролцоогоор <b>50 Сар</b> багтана! Сар Дэлхийгээс ≈4 дахин жижиг.';
+  }else if(sizeMode==='dist'){
+    const gap=W-120,e=gap/30.2;
+    place('sun',-400,10,false);place('earth',60,e);place('moon',60+gap,e*0.273);
+    dline.style.left=(60+e/2)+'px';dline.style.width=(gap-e/2)+'px';dline.style.opacity=1;
+    msg.innerHTML='📏 Дэлхий, Сар хоёрын хооронд ойролцоогоор <b>30 Дэлхий</b> эгнэж багтана!';
+  }else{
+    const s=H*2.6,e=s/109;
+    place('sun',-s/2+W*0.42,s);place('earth',W*0.78,Math.max(e,3));place('moon',-400,2,false);
+    msg.innerHTML='☀️ Нар Дэлхийгээс ≈<b>109</b> дахин том! Баруун талын жижиг цэгийг олоорой 👉';
+  }
+}
+document.querySelectorAll('[data-size]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-size]').forEach(x=>x.classList.remove('on'));b.classList.add('on');sizeMode=b.dataset.size;layoutSize()});
+function travel(){
+  const v=+document.getElementById('tVeh').value,d=+document.getElementById('tDest').value,h=d/v,r=document.getElementById('tRes');
+  const fmt=n=>String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' ');
+  r.textContent=h<48?'≈ '+fmt(h)+' цаг':h/24<730?'≈ '+fmt(h/24)+' хоног':'≈ '+fmt(h/24/365)+' жил';
+}
+document.getElementById('tVeh').onchange=travel;document.getElementById('tDest').onchange=travel;travel();
+
+/* ---------- Interactive globe ---------- */
+const gBox=document.getElementById('globeBox'),gCan=document.getElementById('globe'),gx=gCan.getContext('2d');
+const G={mer:true,par:true,eq:true,pm:true,ub:true,spin:true,hemi:null};
+let rot=[-100,-25],gW=0,gR=0,gC=[0,0];
+const hemiC={N:[0,90],S:[0,-90],W:[-90,0],E:[90,0]};
+const hemiName={N:'Хойд хагас бөмбөрцөг',S:'Өмнөд хагас бөмбөрцөг',W:'Баруун хагас бөмбөрцөг',E:'Зүүн хагас бөмбөрцөг'};
+function resizeGlobe(){
+  if(!HAS_D3)return;const r=gBox.getBoundingClientRect();if(!r.width)return;
+  const dpr=devicePixelRatio||1;gW=Math.min(r.width,r.height);
+  gCan.width=r.width*dpr;gCan.height=r.height*dpr;gx.setTransform(dpr,0,0,dpr,0,0);
+  gR=gW*0.41;gC=[r.width/2,r.height/2];drawGlobe();
+}
+function txt(t,x,y,c,size=15){gx.font=`800 ${size}px Nunito,sans-serif`;gx.lineWidth=4;gx.strokeStyle='rgba(0,0,0,.65)';gx.strokeText(t,x,y);gx.fillStyle=c;gx.fillText(t,x,y)}
+function drawGlobe(){
+  if(!gR)return;
+  const W=gCan.width/(devicePixelRatio||1),H=gCan.height/(devicePixelRatio||1);gx.clearRect(0,0,W,H);
+  const {p,path}=drawEarth(gx,gC[0],gC[1],gR,rot);
+  const line=(geo,c,w)=>{gx.beginPath();path(geo);gx.strokeStyle=c;gx.lineWidth=w;gx.stroke()};
+  if(G.hemi){gx.beginPath();path(d3.geoCircle().center(hemiC[G.hemi]).radius(90)());gx.fillStyle='rgba(255,210,63,.42)';gx.fill()}
+  if(G.mer)d3.range(-180,180,30).forEach(lo=>line(partialMeridian(lo,1),'rgba(255,210,63,.9)',1.5));
+  if(G.par)[-60,-30,30,60].forEach(la=>line(partialParallel(la,1),'rgba(63,208,255,.95)',1.7));
+  if(G.eq)line(partialParallel(0,1),'#ff4d6d',3.5);
+  if(G.pm)line(partialMeridian(0,1),'#ff9f1c',3.5);
+  gx.textAlign='center';
+  [[[0,90],'Хойд туйл'],[[0,-90],'Өмнөд туйл']].forEach(([pt,t])=>{if(visibleOn(p,pt)){const [x,y]=p(pt);gx.fillStyle='#fff';gx.beginPath();gx.arc(x,y,5,0,7);gx.fill();txt(t,x,y-10,'#fff',16)}});
+  if(G.eq){const pt=[-rot[0]+35,0];if(visibleOn(p,pt)){const [x,y]=p(pt);txt('Экватор',x,y-8,'#ff9fb1',16)}}
+  if(G.pm){const pt=[0,51.5];if(visibleOn(p,pt)){const [x,y]=p(pt);txt('Гринвич',x,y-8,'#ffc46b',15)}}
+  if(G.ub&&visibleOn(p,UB)){const [x,y]=p(UB);gx.fillStyle='#ff2d55';gx.beginPath();gx.arc(x,y,7,0,7);gx.fill();gx.strokeStyle='#fff';gx.lineWidth=2.5;gx.stroke();txt('📍 Улаанбаатар',x,y-12,'#fff',16)}
+  if(G.hemi)txt(hemiName[G.hemi],gC[0],H-30,'#ffe07a',20);
+}
+let drag=null;
+gBox.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,r:[...rot]};gBox.setPointerCapture(e.pointerId)});
+gBox.addEventListener('pointermove',e=>{if(!drag)return;const k=180/(gW||400);rot[0]=drag.r[0]+(e.clientX-drag.x)*k;rot[1]=Math.max(-90,Math.min(90,drag.r[1]-(e.clientY-drag.y)*k));drawGlobe()});
+gBox.addEventListener('pointerup',()=>drag=null);gBox.addEventListener('pointercancel',()=>drag=null);
+document.querySelectorAll('#gTog [data-g]').forEach(b=>b.onclick=()=>{const k=b.dataset.g;G[k]=!G[k];b.classList.toggle('on',G[k]);drawGlobe()});
+document.querySelectorAll('#gHemi [data-h]').forEach(b=>b.onclick=()=>{
+  const h=b.dataset.h;G.hemi=G.hemi===h?null:h;
+  document.querySelectorAll('#gHemi [data-h]').forEach(x=>x.classList.toggle('on',x.dataset.h===G.hemi));
+  if(G.hemi){G.spin=false;document.querySelector('[data-g=spin]').classList.remove('on');animRot({N:[-100,-35],S:[-100,35],W:[90,-10],E:[-90,-10]}[h])}
+  drawGlobe();
+});
+function animRot(t){const i=d3.interpolate([...rot],t),t0=performance.now();(function f(now){const k=Math.min(1,(now-t0)/800);rot=i(d3.easeCubicInOut(k));drawGlobe();if(k<1)requestAnimationFrame(f)})(t0)}
+function spinLoop(){if(G.spin&&!drag&&slides[cur].contains(gBox)){rot[0]+=0.25;drawGlobe()}requestAnimationFrame(spinLoop)}
+
+/* ---------- Yard game ---------- */
+const COLS=['А','Б','В','Г','Д','Е'];
+const items={};
+const pool=[['🏠','Гэр'],['🐕','Нохой'],['🌳','Мод'],['🐄','Үнээ'],['🚗','Машин'],['🐔','Тахиа'],['🐈','Муур'],['🌻','Цэцэг'],['🐎','Морь']];
+const yard=document.getElementById('yard');
+let yMode='find',yTarget=null,yScore=0,yDone=false;
+function buildYard(){
+  yard.innerHTML='';
+  const cells=[];for(let r=5;r>=1;r--)for(let c=0;c<6;c++)cells.push(COLS[c]+r);
+  const pick=[...cells].sort(()=>Math.random()-.5).slice(0,pool.length);
+  pool.forEach((p,i)=>items[pick[i]]=p);
+  for(let r=5;r>=1;r--){
+    const ax=document.createElement('div');ax.className='ax';ax.textContent=r;yard.appendChild(ax);
+    for(let c=0;c<6;c++){const id=COLS[c]+r,d=document.createElement('div');d.className='cell';d.dataset.id=id;d.textContent=items[id]?items[id][0]:'';d.onclick=()=>yClick(id,d);yard.appendChild(d)}
+  }
+  yard.appendChild(document.createElement('div'));
+  COLS.forEach(c=>{const a=document.createElement('div');a.className='ax';a.textContent=c;yard.appendChild(a)});
+}
+function yNew(){
+  yDone=false;const fb=document.getElementById('yFb');fb.textContent='';fb.className='feedback';
+  yard.querySelectorAll('.cell').forEach(c=>c.classList.remove('good','bad'));
+  const ch=document.getElementById('yChoices');ch.innerHTML='';
+  const ks=Object.keys(items);
+  if(yMode==='find'){
+    yTarget=Math.random()<.6?ks[Math.floor(Math.random()*ks.length)]:COLS[Math.floor(Math.random()*6)]+(1+Math.floor(Math.random()*5));
+    document.getElementById('yQ').innerHTML=`👉 <b style="color:var(--blue-d);font-size:34px">${yTarget}</b> нүдэн дээр дараарай. Тэнд юу байна?`;
+  }else{
+    yTarget=ks[Math.floor(Math.random()*ks.length)];const it=items[yTarget];
+    document.getElementById('yQ').innerHTML=`${it[0]} <b>${it[1]}</b> аль нүдэнд байна вэ?`;
+    const opts=new Set([yTarget]);
+    while(opts.size<4)opts.add(Math.random()<.5?yTarget[0]+(1+Math.floor(Math.random()*5)):COLS[Math.floor(Math.random()*6)]+yTarget.slice(1));
+    [...opts].sort(()=>Math.random()-.5).forEach(o=>{const b=document.createElement('button');b.className='btn ghost';b.textContent=o;b.onclick=()=>yAnswer(o,b);ch.appendChild(b)});
+  }
+}
+function yGood(msg){yScore++;document.getElementById('yScore').textContent=yScore;const f=document.getElementById('yFb');f.className='feedback ok';f.textContent=msg;yDone=true;confetti(40)}
+function yClick(id,el){
+  if(yMode!=='find'||yDone)return;
+  if(id===yTarget){el.classList.add('good');yGood('🎉 Зөв! '+id+(items[id]?' нүдэнд '+items[id][1].toLowerCase()+' байна.':' нүд хоосон байна.'))}
+  else{el.classList.add('bad');const f=document.getElementById('yFb');f.className='feedback no';f.textContent='🤔 Энэ бол '+id+'. Эхлээд үсгийг, дараа нь тоог олоорой!';setTimeout(()=>el.classList.remove('bad'),700)}
+}
+function yAnswer(o,b){
+  if(yDone)return;
+  if(o===yTarget){b.classList.add('on');yard.querySelector(`[data-id="${o}"]`).classList.add('good');yGood('🎉 Зөв! '+o)}
+  else{const f=document.getElementById('yFb');f.className='feedback no';f.textContent='🤔 Дахин оролдоорой!';b.disabled=true;b.style.opacity=.4}
+}
+document.querySelectorAll('[data-ym]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-ym]').forEach(x=>x.classList.remove('on'));b.classList.add('on');yMode=b.dataset.ym;yNew()});
+document.getElementById('yNext').onclick=yNew;
+buildYard();yNew();
+
+/* ---------- Hemisphere game ---------- */
+const H_ITEMS=[
+  {e:'🇲🇳',n:'Монгол улс',w:'Улаанбаатар хот',ll:[106.9,47.9]},
+  {e:'🦘',n:'Имж (кенгуру)',w:'Австрали',ll:[134,-25]},
+  {e:'🗽',n:'Эрх чөлөөний хөшөө',w:'Нью-Йорк, АНУ',ll:[-74,40.7]},
+  {e:'🦜',n:'Тоть шувуу',w:'Амазоны ой, Бразил',ll:[-60,-5]},
+  {e:'🐼',n:'Панда',w:'Хятад',ll:[104,30]},
+  {e:'🐻‍❄️',n:'Цагаан баавгай',w:'Канадын хойд хэсэг',ll:[-95,70]},
+  {e:'🦁',n:'Арслан',w:'Өмнөд Африк',ll:[25,-25]},
+  {e:'🗻',n:'Фүжи уул',w:'Япон',ll:[138.7,35.4]},
+  {e:'🐧',n:'Оцон шувуу',w:'Өмнөд Америкийн өмнөд үзүүр',ll:[-68,-54]},
+  {e:'🐫',n:'Тэмээ ба пирамид',w:'Египет',ll:[31,30]},
+];
+const QN={NW:'Хойд · Баруун',NE:'Хойд · Зүүн',SW:'Өмнөд · Баруун',SE:'Өмнөд · Зүүн'};
+const hsvg=document.getElementById('hmap');
+let hOrder=[],hi=0,hScore=0,hDone=false,hProj=null;
+const quadOf=ll=>(ll[1]>=0?'N':'S')+(ll[0]>=0?'E':'W');
+function buildHMap(){
+  const svg=d3.select(hsvg);svg.selectAll('*').remove();
+  hProj=d3.geoEquirectangular().scale(960/(2*Math.PI)).translate([480,240]);
+  const p=d3.geoPath(hProj);
+  const qc={NW:'#2a6fc9',NE:'#2280b8',SW:'#1f62a8',SE:'#1b7397'};
+  [['NW',0,0],['NE',480,0],['SW',0,240],['SE',480,240]].forEach(([q,x,y])=>{
+    svg.append('rect').attr('class','quad').attr('data-q',q).attr('x',x).attr('y',y).attr('width',480).attr('height',240).attr('fill',qc[q]);
+  });
+  if(land)svg.append('path').datum(land).attr('d',p).attr('fill','#62c370').attr('stroke','#2d7a3a').attr('stroke-width',.6).attr('pointer-events','none');
+  svg.append('line').attr('x1',0).attr('x2',960).attr('y1',240).attr('y2',240).attr('stroke','#ff4d6d').attr('stroke-width',5);
+  svg.append('line').attr('x1',480).attr('x2',480).attr('y1',0).attr('y2',480).attr('stroke','#ff9f1c').attr('stroke-width',5);
+  const lab=(t,x,y,a)=>svg.append('text').attr('x',x).attr('y',y).attr('text-anchor',a).attr('fill','#fff').attr('font-size',24).attr('font-weight',900).attr('stroke','rgba(0,0,0,.55)').attr('stroke-width',5).attr('paint-order','stroke').attr('pointer-events','none').text(t);
+  lab('Хойд · Баруун',14,32,'start');lab('Хойд · Зүүн',946,32,'end');lab('Өмнөд · Баруун',14,466,'start');lab('Өмнөд · Зүүн',946,466,'end');
+  svg.append('text').attr('x',944).attr('y',232).attr('text-anchor','end').attr('fill','#ffb3c0').attr('font-size',20).attr('font-weight',900).attr('stroke','rgba(0,0,0,.6)').attr('stroke-width',4).attr('paint-order','stroke').text('Экватор');
+  svg.append('text').attr('x',490).attr('y',62).attr('fill','#ffd08a').attr('font-size',20).attr('font-weight',900).attr('stroke','rgba(0,0,0,.6)').attr('stroke-width',4).attr('paint-order','stroke').text('Анхны голдож');
+  svg.append('g').attr('id','hMarks');
+  svg.selectAll('.quad').on('click',function(){hAnswer(this.dataset.q)});
+}
+function hNew(){
+  if(!hOrder.length||hi>=hOrder.length){hOrder=[...H_ITEMS].sort(()=>Math.random()-.5);hi=0;hScore=0;document.getElementById('hScore').textContent=0}
+  hDone=false;const it=hOrder[hi];
+  document.getElementById('hPic').textContent=it.e;document.getElementById('hName').textContent=it.n;document.getElementById('hWhere').textContent=it.w;
+  document.getElementById('hTot').textContent=hOrder.length;
+  const f=document.getElementById('hFb');f.textContent='Газрын зураг дээрх хэсгийг эсвэл товчийг дараарай 👆';f.className='feedback';
+  document.querySelectorAll('#hBtns .btn').forEach(b=>{b.classList.remove('right','wrong');b.disabled=false});
+  if(HAS_D3)d3.select('#hMarks').selectAll('*').remove();
+}
+function hAnswer(q){
+  if(hDone)return;const it=hOrder[hi],ans=quadOf(it.ll),f=document.getElementById('hFb');
+  const btn=document.querySelector(`#hBtns [data-q="${q}"]`);
+  if(q===ans){
+    hDone=true;hScore++;document.getElementById('hScore').textContent=hScore;btn.classList.add('right');
+    f.className='feedback ok';f.textContent='🎉 Зөв! '+it.n+' — '+QN[ans]+' хагаст байдаг.';confetti(50);
+    if(hProj){const [x,y]=hProj(it.ll),g=d3.select('#hMarks');
+      g.append('circle').attr('cx',x).attr('cy',y).attr('r',22).attr('fill','none').attr('stroke','#ffe07a').attr('stroke-width',4);
+      g.append('text').attr('x',x).attr('y',y+14).attr('text-anchor','middle').attr('font-size',38).text(it.e)}
+  }else{
+    btn.classList.add('wrong');btn.disabled=true;f.className='feedback no';
+    f.textContent=(q[0]!==ans[0]?'🤔 Экваторын аль талд байгааг дахин бодоорой!':'🤔 Анхны голдожийн аль талд байгааг дахин бодоорой!');
+  }
+}
+document.querySelectorAll('#hBtns [data-q]').forEach(b=>b.onclick=()=>hAnswer(b.dataset.q));
+document.getElementById('hNext').onclick=()=>{hi++;hNew()};
+
+/* ---------- Load world data ---------- */
+if(HAS_D3){
+  d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+    .then(w=>{land=topojson.feature(w,w.objects.land)}).catch(()=>{})
+    .finally(()=>{resizeGlobe();buildHMap();videos.forEach(v=>v.render())});
+  buildHMap();requestAnimationFrame(spinLoop);
+}else{document.getElementById('gOff').style.display='flex';hsvg.outerHTML='<div style="color:#fff;padding:40px;text-align:center">🗺️ Газрын зураг ачаалахад интернэт шаардлагатай.</div>'}
+hNew();
+
+/* ---------- Quiz ---------- */
+const Q=[
+  {q:'Дэлхий ямар хэлбэртэй вэ?',o:['Хавтгай','Бөмбөрцөг','Шоо','Гурвалжин'],a:1,e:'Дэлхий бөмбөрцөг хэлбэртэй.'},
+  {q:'Дэлхийн жижигрүүлсэн загварыг юу гэдэг вэ?',o:['Луужин','Дуран','Глобус','Цаг'],a:2,e:'Глобус бол Дэлхийн загвар.'},
+  {q:'Хойд туйлаас өмнөд туйл хүртэл татсан шугамыг юу гэдэг вэ?',o:['Зэргэд','Голдож','Экватор','Тэнхлэг'],a:1,e:'Голдож туйлаас туйл хүртэл үргэлжилнэ.'},
+  {q:'Экватортой зэрэгцүүлэн татсан тойргуудыг юу гэдэг вэ?',o:['Зэргэд','Голдож','Туйл','Хил'],a:0,e:'Зэргэд нь экватортой зэрэгцээ.'},
+  {q:'Экватор Дэлхийг юу болгон хуваадаг вэ?',o:['Баруун ба зүүн хагас','Хойд ба өмнөд хагас','Тив ба далай','Өдөр ба шөнө'],a:1,e:'Экватор → хойд ба өмнөд хагас бөмбөрцөг.'},
+  {q:'Анхны голдож аль газрыг дайрдаг вэ?',o:['Улаанбаатар','Бээжин','Гринвич (Англи)','Москва'],a:2,e:'1884 онд Гринвичийг дайруулан тогтоосон.'},
+  {q:'Монгол улс аль хагас бөмбөрцөгт оршдог вэ?',o:['Хойд ба зүүн','Өмнөд ба зүүн','Хойд ба баруун','Өмнөд ба баруун'],a:0,e:'Экватороос хойд, анхны голдожоос зүүн.'},
+  {q:'Аль нь хамгийн том вэ?',o:['Сар','Дэлхий','Нар','Бүгд ижил'],a:2,e:'Нар Дэлхийгээс ≈109 дахин том.'},
+];
+let qi=0,qRes=[];
+const quiz=document.getElementById('quiz');
+function renderQ(){
+  if(qi>=Q.length){
+    const s=qRes.filter(Boolean).length,st=s>=7?3:s>=5?2:s>=3?1:0;
+    quiz.innerHTML=`<div class="card result"><div class="bigstars">${'⭐'.repeat(st)}${'☆'.repeat(3-st)}</div><h1 style="margin:10px 0">${s} / ${Q.length}</h1><p style="font-size:26px;font-weight:800">${st===3?'Гайхалтай! Та жинхэнэ судлаач боллоо! 🧑‍🚀':st===2?'Сайн байна! Бага зэрэг давтвал төгс! 👍':'Хамтдаа дахин давтъя! 💪'}</p><button class="btn" onclick="qi=0;qRes=[];renderQ()">↺ Дахин эхлэх</button></div>`;
+    if(s>=5)confetti(160);return;
+  }
+  const it=Q[qi];
+  quiz.innerHTML=`<h2>❓ Шалгацгаая! <span style="font-size:22px;color:#bcd3ff">${qi+1}/${Q.length}</span></h2>
+    <div class="qbar">${Q.map((_,i)=>`<i class="${i<qi?(qRes[i]?'ok':'no'):i===qi?'cur':''}"></i>`).join('')}</div>
+    <div class="quiz-q">${it.q}</div>
+    <div class="quiz-opts">${it.o.map((o,i)=>`<button class="qopt" data-i="${i}"><span class="k">${'АБВГ'[i]}</span>${o}</button>`).join('')}</div>
+    <div class="feedback" id="qFb"></div>
+    <div style="text-align:right"><button class="btn sun" id="qNext" style="visibility:hidden">Дараагийн асуулт ▶</button></div>`;
+  quiz.querySelectorAll('.qopt').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.i,ok=i===it.a;qRes[qi]=ok;
+    quiz.querySelectorAll('.qopt').forEach(x=>{x.disabled=true;if(+x.dataset.i===it.a)x.classList.add('right')});
+    if(!ok)b.classList.add('wrong');else confetti(50);
+    const f=document.getElementById('qFb');f.className='feedback '+(ok?'ok':'no');f.textContent=(ok?'🎉 Зөв! ':'❌ Буруу. ')+it.e;
+    document.getElementById('qNext').style.visibility='visible';
+  });
+  document.getElementById('qNext').onclick=()=>{qi++;renderQ()};
+}
+renderQ();
+
+/* ---------- Traffic lights ---------- */
+const lc=JSON.parse(store.get('lesson-lights')||'{"g":0,"y":0,"r":0}');
+function drawL(){document.querySelectorAll('.light').forEach(b=>b.querySelector('.n').textContent=lc[b.dataset.l])}
+document.querySelectorAll('.light').forEach(b=>b.onclick=()=>{lc[b.dataset.l]++;store.set('lesson-lights',JSON.stringify(lc));drawL();b.classList.add('on');setTimeout(()=>b.classList.remove('on'),300)});
+document.getElementById('lReset').onclick=()=>{lc.g=lc.y=lc.r=0;store.set('lesson-lights',JSON.stringify(lc));drawL()};
+drawL();
+
+/* ---------- Confetti ---------- */
+const cc=document.getElementById('confetti'),cx2=cc.getContext('2d');let parts=[],cRun=false;
+function confetti(n){
+  cc.width=innerWidth;cc.height=innerHeight;
+  const cols=['#1f8bff','#22b45f','#7ff0ad','#ffbf2f','#ff6b5a','#3fd0ff'];
+  for(let i=0;i<n;i++)parts.push({x:innerWidth/2+(Math.random()-.5)*300,y:innerHeight*0.45,vx:(Math.random()-.5)*14,vy:-Math.random()*14-4,s:6+Math.random()*6,c:cols[i%6],r:Math.random()*6,life:120});
+  if(!cRun){cRun=true;requestAnimationFrame(cStep)}
+}
+function cStep(){
+  cx2.clearRect(0,0,cc.width,cc.height);
+  parts.forEach(p=>{p.vy+=.4;p.x+=p.vx;p.y+=p.vy;p.r+=.2;p.life--;cx2.save();cx2.translate(p.x,p.y);cx2.rotate(p.r);cx2.fillStyle=p.c;cx2.fillRect(-p.s/2,-p.s/4,p.s,p.s/2);cx2.restore()});
+  parts=parts.filter(p=>p.life>0&&p.y<cc.height+20);
+  if(parts.length)requestAnimationFrame(cStep);else{cRun=false;cx2.clearRect(0,0,cc.width,cc.height)}
+}
+
+/* ---------- Init ---------- */
+addEventListener('resize',()=>{resizeGlobe();layoutSize()});
+go(0);layoutSize();
+new ResizeObserver(()=>layoutSize()).observe(space);
+</script>
+</body>
+</html>
